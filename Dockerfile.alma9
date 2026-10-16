@@ -1,0 +1,154 @@
+# #############################################################################
+# Configuration
+# #############################################################################
+# Default base image
+ARG DOCKER_BASE_IMAGE=almalinux:9
+FROM $DOCKER_BASE_IMAGE
+
+# User, password, GID and UID
+ARG USER=user
+ARG GROUP=user
+ARG PW=docker
+ARG UID=1002
+ARG GID=1002
+# Key directory
+ARG KEY_DIR
+
+# Some diagnostics
+RUN echo USER=${USER} GROUP=${GROUP} PW=${PW} UID=${UID} GID=${GID} KEY_DIR=${KEY_DIR}
+
+# #############################################################################
+# Image build
+# #############################################################################
+
+# Enable EPEL and CRB repositories, then update and install packages
+RUN dnf install -y epel-release && crb enable && dnf makecache && dnf update -y --allowerasing
+RUN dnf install -y \
+    autoconf \
+    automake \
+    bash-completion \
+    bc \
+    bison \
+    btop \
+    bzip2-devel \
+    ccache \
+    clang \
+    cmake \
+    perl-CPAN \
+    doxygen-latex \
+    dtc \
+    file \
+    flex \
+    gcc \
+    gcc-c++ \
+    gdb \
+    ghostscript \
+    git \
+    gitk \
+    glib2-devel \
+    glibc \
+    gmp-devel \
+    graphviz \
+    htop \
+    httpd \
+    hwloc-devel \
+    iproute \
+    json-c-devel \
+    libX11.i686 \
+    libXau.i686 \
+    libXdmcp \
+    libXdmcp.i686 \
+    libXext.i686 \
+    libXft-devel.i686 \
+    libXft.i686 \
+    libXrender.i686 \
+    libXt.i686 \
+    libXtst \
+    libXtst.i686 \
+    libfdt-devel \
+    libffi-devel \
+    libnsl \
+    libpcap-devel \
+    libtool \
+    make \
+    mc \
+    ncurses-compat-libs \
+    ncurses-libs \
+    ninja-build \
+    openssh-server \
+    openssl-devel \
+    patch \
+    pixman-devel \
+    psmisc \
+    python3 \
+    python3-devel \
+    python3-pip \
+    readline-devel \
+    rpm-build \
+    rsync \
+    sudo \
+    tcl \
+    texlive-* \
+    thrift-devel \
+    time \
+    vim \
+    vim-X11 \
+    vim-common \
+    wget \
+    which \
+    xz-devel \
+    zip \
+    zlib-devel && dnf clean all
+
+# Setup Python packages
+ARG PYTHON_DEPS="cpplint pylint autopep8 reportlab scapy gitpython dtc"
+RUN python3 -m pip install --no-cache-dir --proxy=$HTTP_PROXY ${PYTHON_DEPS}
+
+# Install deps for perl
+RUN yes | cpan Math::Utils
+
+# Create a user and setup the password
+RUN groupadd -g ${GID} ${GROUP}
+RUN useradd -m ${USER} --uid=${UID} --gid=${GID} -s/bin/bash && echo "${USER}:${PW}" | chpasswd
+
+# Configure sudo - create a user & export some variables
+RUN echo "${USER} ALL = (root) NOPASSWD:ALL" > /etc/sudoers.d/${USER}
+RUN echo "Defaults env_keep += \"ftp_proxy http_proxy https_proxy no_proxy DISPLAY\""
+
+# Setup alias for bash users
+RUN echo "alias sudo='sudo -E'" >> /etc/bashrc
+
+# SSH configuration
+# Copy the actual authorized keys (from user HOME) into container
+COPY ${KEY_DIR}/authorized_keys /home/${USER}/.ssh/ 
+RUN  chmod 700 /home/${USER}/.ssh && \
+     chown -R ${USER} /home/${USER}/.ssh && \
+     chmod 600 /home/${USER}/.ssh/*
+
+# Copy SSH server keys
+COPY ${KEY_DIR}/ssh_host_rsa_key /etc/ssh/
+COPY ${KEY_DIR}/ssh_host_rsa_key.pub /etc/ssh/
+COPY ${KEY_DIR}/ssh_host_dsa_key /etc/ssh/
+COPY ${KEY_DIR}/ssh_host_dsa_key.pub /etc/ssh/
+COPY ${KEY_DIR}/ssh_host_ecdsa_key /etc/ssh/
+COPY ${KEY_DIR}/ssh_host_ecdsa_key.pub /etc/ssh/
+COPY ${KEY_DIR}/ssh_host_ed25519_key /etc/ssh/
+COPY ${KEY_DIR}/ssh_host_ed25519_key.pub /etc/ssh/
+RUN chown root:root /etc/ssh/ssh_host* && \
+    chmod 600 /etc/ssh/ssh_host*
+
+# Copy the start script for the ssh and prepare for autostart
+COPY sources/run-ssh /sbin/run-ssh
+RUN chmod 755 /sbin/run-ssh
+COPY sources/root.bashrc /root/.bashrc
+
+# Copy scripts to /usr/bin and make them executable
+COPY scripts/encrypt_sources.py /usr/bin
+COPY scripts/install-pandoc.sh /usr/bin
+RUN chmod +x /usr/bin/encrypt_sources.py && \
+    chmod +x /usr/bin/install-pandoc.sh
+
+# Install pandoc from the package
+RUN /usr/bin/install-pandoc.sh
+
+EXPOSE 22

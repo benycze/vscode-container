@@ -1,0 +1,51 @@
+#!/usr/bin/env bash
+
+set -e
+
+# Attach script that runs docker exec with /bin/bash
+# Accepts an argument with image name or container name.
+
+TARGET="${1:-vscode-dev-$USER}"
+CONTAINER_TOOL=$(command -v docker 2>/dev/null || command -v podman 2>/dev/null || echo "docker")
+
+# Function to find running container from image name
+find_container_by_image() {
+    local img="$1"
+    ${CONTAINER_TOOL} ps --filter "ancestor=${img}" --format '{{.ID}}' | head -n 1
+}
+
+# Function to check if target is a running container
+is_running_container() {
+    local c="$1"
+    ${CONTAINER_TOOL} ps --format '{{.Names}} {{.ID}}' | grep -qw "${c}"
+}
+
+CONTAINER_TO_ATTACH=""
+
+if is_running_container "$TARGET"; then
+    CONTAINER_TO_ATTACH="$TARGET"
+else
+    # Try looking up TARGET as an image name
+    FOUND_ID=$(find_container_by_image "$TARGET")
+    if [ -n "$FOUND_ID" ]; then
+        CONTAINER_TO_ATTACH="$FOUND_ID"
+    else
+        # If default TARGET wasn't found as a container, check if default image is running
+        FOUND_DEFAULT_ID=$(find_container_by_image "p4-vscode-devel")
+        if [ -n "$FOUND_DEFAULT_ID" ]; then
+            CONTAINER_TO_ATTACH="$FOUND_DEFAULT_ID"
+        fi
+    fi
+fi
+
+if [ -z "$CONTAINER_TO_ATTACH" ]; then
+    echo "Error: No running container found for '$TARGET'."
+    echo "Usage: $0 [IMAGE_NAME_OR_CONTAINER_NAME]"
+    echo ""
+    echo "Currently running containers:"
+    ${CONTAINER_TOOL} ps --format 'table {{.ID}}\t{{.Image}}\t{{.Names}}\t{{.Status}}'
+    exit 1
+fi
+
+echo "Attaching to container '$CONTAINER_TO_ATTACH' with /bin/bash..."
+exec ${CONTAINER_TOOL} exec -it "$CONTAINER_TO_ATTACH" /bin/bash

@@ -1,0 +1,165 @@
+# #############################################################################
+# Configuration
+# #############################################################################
+# Default base image
+ARG DOCKER_BASE_IMAGE=ubuntu:24.04
+FROM $DOCKER_BASE_IMAGE
+
+# User, password, GID and UID
+ARG USER=user
+ARG GROUP=user
+ARG PW=docker
+ARG UID=1002
+ARG GID=1002
+# Key directory
+ARG KEY_DIR
+# Number of build jobs
+ARG JOBS=4
+
+# Some diagnostics
+RUN echo USER=${USER} GROUP=${GROUP} PW=${PW} UID=${UID} GID=${GID} KEY_DIR=${KEY_DIR}
+
+# #############################################################################
+# Image build
+# #############################################################################
+
+# Install packages
+RUN apt update && DEBIAN_FRONTEND=noninteractive apt upgrade -y
+RUN DEBIAN_FRONTEND=noninteractive apt install -y \
+    apache2 \
+    autoconf \
+    automake \
+    bash-completion \
+    bc \
+    bison \
+    btop \
+    build-essential \
+    ca-certificates \
+    ccache \
+    clang \
+    cmake \
+    device-tree-compiler \
+    doxygen \
+    doxygen-latex \
+    file \
+    flex \
+    gdb \
+    gpg \
+    ghostscript \
+    git \
+    gitk \
+    graphviz \
+    htop \
+    iproute2 \
+    libbz2-dev \
+    libglib2.0-dev \
+    libgmp-dev \
+    libhwloc-dev \
+    libmath-utils-perl \
+    libpcap-dev \
+    libpixman-1-dev \
+    libssl-dev \
+    libthrift-dev \
+    libtool \
+    locales \
+    make \
+    man-db \
+    mc \
+    ninja-build \
+    openssh-server \
+    patch \
+    perl* \
+    psmisc \
+    python3 \
+    python3-dev \
+    python3-pip \
+    rsync \
+    sudo \
+    tcl \
+    texlive-full \
+    time \
+    vim \
+    vim-common \
+    vim-gtk3 \
+    wget \
+    xz-utils \
+    zip
+RUN yes | unminimize
+RUN apt clean
+
+# Compile nlohmann json library
+RUN cd /opt \
+    && git clone https://github.com/nlohmann/json \
+    && mkdir json/build; cd json \
+    && cd build \
+    && cmake .. \
+    && make -j ${JOBS} \
+    && make install \
+    && rm -rf /opt/json
+
+# Compile inja
+RUN cd /opt \
+    && git clone https://github.com/pantor/inja \
+    && cd inja \
+    && mkdir build \
+    && cd build \
+    && cmake .. \
+    && make -j ${JOBS} \
+    && make install \
+    && rm -rf /opt/inja
+
+# Setup locale
+RUN sed -i '/en_US.UTF-8/s/^# //g' /etc/locale.gen && locale-gen
+ENV LANG en_US.UTF-8
+ENV LANGUAGE en_US:en
+ENV LC_ALL en_US.UTF-8
+
+# Setup python packages
+ARG PYTHON_DEPS="cpplint pylint autopep8 reportlab scapy gitpython dtc"
+RUN python3 -m pip install --break-system-packages --no-cache-dir --proxy=$HTTP_PROXY ${PYTHON_DEPS}
+
+# Create a user and setup the password
+RUN groupadd -g ${GID} ${GROUP}
+RUN useradd -m ${USER} --uid=${UID} --gid=${GID} -s/bin/bash && echo "${USER}:${PW}" | chpasswd
+
+# Configure sudo - create a user & export some variables
+RUN echo "${USER} ALL = (root) NOPASSWD:ALL" > /etc/sudoers.d/${USER}
+RUN echo "Defaults env_keep += \"ftp_proxy http_proxy https_proxy no_proxy DISPLAY\""
+
+# Setup alias for bash users
+RUN echo "alias sudo='sudo -E'" >> /etc/bashrc
+
+# SSH configuration
+# Copy the actual authorized keys (from user HOME) into container
+COPY ${KEY_DIR}/authorized_keys /home/${USER}/.ssh/ 
+RUN  chmod 700 /home/${USER}/.ssh && \
+     chown -R ${USER} /home/${USER}/.ssh && \
+     chmod 600 /home/${USER}/.ssh/*
+
+# Copy SSH server keys
+COPY ${KEY_DIR}/ssh_host_rsa_key /etc/ssh/
+COPY ${KEY_DIR}/ssh_host_rsa_key.pub /etc/ssh/
+COPY ${KEY_DIR}/ssh_host_dsa_key /etc/ssh/
+COPY ${KEY_DIR}/ssh_host_dsa_key.pub /etc/ssh/
+COPY ${KEY_DIR}/ssh_host_ecdsa_key /etc/ssh/
+COPY ${KEY_DIR}/ssh_host_ecdsa_key.pub /etc/ssh/
+COPY ${KEY_DIR}/ssh_host_ed25519_key /etc/ssh/
+COPY ${KEY_DIR}/ssh_host_ed25519_key.pub /etc/ssh/
+RUN chown root:root /etc/ssh/ssh_host* && \
+    chmod 600 /etc/ssh/ssh_host*
+
+# Copy the start script for the ssh and prepare for autostart
+COPY sources/run-ssh /sbin/run-ssh
+RUN chmod 755 /sbin/run-ssh
+COPY sources/root.bashrc /root/.bashrc
+
+# Copy scripts to /usr/bin and make them executable
+COPY scripts/encrypt_sources.py /usr/bin
+COPY scripts/install-pandoc.sh /usr/bin
+RUN chmod +x /usr/bin/encrypt_sources.py && \
+    chmod +x /usr/bin/install-pandoc.sh
+
+# Install pandoc from package
+RUN /usr/bin/install-pandoc.sh
+
+EXPOSE 22

@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+echo "Starting the VS Code docker image ..."
+docker run \
+--privileged \
+--name vscode-dev-$USER \
+--interactive --tty --rm \
+-p 2222:22 \
+-p 8080:80 \
+--env="DISPLAY" \
+--env "PS1=docker-\w\$ " \
+--volume="$HOME/.Xauthority:/root/.Xauthority:rw" \
+--volume=$HOME/repos:/p4-home \
+--volume=$HOME/docker/user-home/ccache:/home/$USER/.ccache \
+--volume=$HOME/docker/user-home/vscode-server:/home/$USER/.vscode-server \
+--volume=$HOME/docker/user-home/local:/home/$USER/.local \
+p4-vscode-devel
