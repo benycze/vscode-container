@@ -16,6 +16,9 @@ SSH_KEY_DIR=~/docker/docker_ssh_keys
 FROM_IMAGE=""
 DOCKERFILE=Dockerfile.alma9
 
+# Ubuntu mirror configuration (default: archive.ubuntu.com; presets: us, il, jp)
+UBUNTU_MIRROR="archive.ubuntu.com"
+
 function usage() {
     echo "Usage: $0 [OPTION]..."
     echo "Build a container image for remote Visual Studio Code development"
@@ -24,7 +27,8 @@ function usage() {
     echo "  -d, --dockerfile=FILE           Use the following dockerfile for build (default=$DOCKERFILE)"
     echo "  -k, --key-dir=DIR               Store generated SSH keys in DIR (default=${SSH_KEY_DIR})"
     echo "  -i, --image=NAME                Image name to generate (default=${DST_IMAGE})"
-    echo "  -f, --from=IMAGE                Base image used for the build (default: almalinux:9 for Dockerfile.alma9, ubuntu:24.04 for Dockerfile.ubuntu)"
+    echo "  -f, --from=IMAGE                Base image used for the build (default: almalinux:9 for Dockerfile.alma9, ubuntu:24.04 for Dockerfile.ubuntu, debian:stable for Dockerfile.debian)"
+    echo "  -m, --mirror=MIRROR             Package mirror to use for Ubuntu/Debian (presets: cz, cvut, us, il, jp, or custom domain/URL)"
     echo "  -h, --help                      Display this help message"
 }
 
@@ -50,7 +54,7 @@ function create_key() {
 }
 
 # Parse command line options
-OPTIONS=$(getopt -o ":k:i:hf:d:" -l "key-dir:,image:,help,from:,dockerfile:" -- "$@")
+OPTIONS=$(getopt -o ":k:i:hf:d:m:" -l "key-dir:,image:,help,from:,dockerfile:,mirror:" -- "$@")
 if [ $? != 0 ] ; then
     echo "Error: invalid option(s)"
     echo ""
@@ -82,6 +86,10 @@ while true ; do
             DOCKERFILE=$2
             shift
             ;;
+        -m|--mirror)
+            UBUNTU_MIRROR=$2
+            shift
+            ;;
         --)
             shift
             break
@@ -94,6 +102,8 @@ done
 if [ -z "$FROM_IMAGE" ]; then
     if [[ "$DOCKERFILE" == *"ubuntu"* ]]; then
         FROM_IMAGE="ubuntu:24.04"
+    elif [[ "$DOCKERFILE" == *"debian"* ]]; then
+        FROM_IMAGE="debian:stable"
     elif [[ "$DOCKERFILE" == *"alma8"* ]]; then
         FROM_IMAGE="almalinux:8"
     else
@@ -141,7 +151,9 @@ ${CONTAINER_TOOL} build -f "${DOCKERFILE}" -t "${DST_IMAGE}" . \
     --build-arg UID="$(id -u)" \
     --build-arg GID="$(id -g)" \
     --build-arg KEY_DIR="${TMP_KEY_DIR}" \
-    --build-arg DOCKER_BASE_IMAGE="${FROM_IMAGE}"
+    --build-arg DOCKER_BASE_IMAGE="${FROM_IMAGE}" \
+    --build-arg UBUNTU_MIRROR="${UBUNTU_MIRROR}" \
+    --build-arg DEBIAN_MIRROR="${UBUNTU_MIRROR}"
 
 echo "Build completed successfully."
 exit 0

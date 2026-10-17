@@ -15,13 +15,38 @@ ARG GID=1002
 ARG KEY_DIR
 # Number of build jobs
 ARG JOBS=4
+# Ubuntu package mirror (default: archive.ubuntu.com; presets: cz, cvut, us, il, jp, or custom domain/URL)
+ARG UBUNTU_MIRROR=archive.ubuntu.com
 
 # Some diagnostics
-RUN echo USER=${USER} GROUP=${GROUP} PW=${PW} UID=${UID} GID=${GID} KEY_DIR=${KEY_DIR}
+RUN echo USER=${USER} GROUP=${GROUP} PW=${PW} UID=${UID} GID=${GID} KEY_DIR=${KEY_DIR} UBUNTU_MIRROR=${UBUNTU_MIRROR}
 
 # #############################################################################
 # Image build
 # #############################################################################
+
+# Configure closest mirror and enable parallel APT downloads
+RUN if [ -n "$UBUNTU_MIRROR" ] && [ "$UBUNTU_MIRROR" != "archive.ubuntu.com" ]; then \
+        case "$UBUNTU_MIRROR" in \
+            cz|cvut) MIRROR="ftp.cvut.cz" ;; \
+            us)      MIRROR="us.archive.ubuntu.com" ;; \
+            il)      MIRROR="il.archive.ubuntu.com" ;; \
+            jp)      MIRROR="jp.archive.ubuntu.com" ;; \
+            *)       MIRROR="$UBUNTU_MIRROR" ;; \
+        esac; \
+        echo "Configuring Ubuntu mirror: ${MIRROR}"; \
+        for f in /etc/apt/sources.list.d/ubuntu.sources /etc/apt/sources.list; do \
+            if [ -f "$f" ]; then \
+                if echo "$MIRROR" | grep -q "://"; then \
+                    M_URL="${MIRROR%/}/"; \
+                    sed -i "s|http://archive.ubuntu.com/ubuntu/|${M_URL}|g" "$f"; \
+                else \
+                    sed -i "s|archive.ubuntu.com|${MIRROR}|g" "$f"; \
+                fi; \
+            fi; \
+        done; \
+    fi && \
+    echo 'Acquire::http::Pipeline-Depth "5";' > /etc/apt/apt.conf.d/99parallel
 
 # Install packages
 RUN apt update && DEBIAN_FRONTEND=noninteractive apt upgrade -y

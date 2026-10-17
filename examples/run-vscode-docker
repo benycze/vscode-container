@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-echo "Starting the VS Code docker image ..."
-docker run \
+CONTAINER_TOOL=$(command -v docker 2>/dev/null || command -v podman 2>/dev/null || echo "docker")
+echo "Starting the VS Code container using ${CONTAINER_TOOL} ..."
+${CONTAINER_TOOL} run \
 --privileged \
 --name vscode-dev-$USER \
 --interactive --tty --rm \

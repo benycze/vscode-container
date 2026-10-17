@@ -9,8 +9,8 @@ if [ `ps aux | grep -c ssh[d]` -eq 0 ] ; then
 fi
 
 # Run the Apache 2
-if [ -f /etc/lsb-release ]; then
-   echo "Starting apache2 on ubuntu"
+if [ -f /etc/lsb-release ] || [ -f /etc/debian_version ]; then
+   echo "Starting apache2 on debian/ubuntu"
    if [ `ps aux | grep -c apache2` -eq 0 ] ; then
      service apache2 start
    fi

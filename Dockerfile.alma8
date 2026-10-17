@@ -22,7 +22,8 @@ RUN echo USER=${USER} GROUP=${GROUP} PW=${PW} UID=${UID} GID=${GID} KEY_DIR=${KE
 # #############################################################################
 
 # Enable EPEL and CRB / PowerTools repositories, then update and install packages
-RUN dnf install -y epel-release && (/usr/bin/crb enable || dnf config-manager --set-enabled powertools) && dnf makecache && dnf update -y --allowerasing
+RUN echo -e "fastestmirror=True\nmax_parallel_downloads=10" >> /etc/dnf/dnf.conf && \
+    dnf install -y epel-release && (/usr/bin/crb enable || dnf config-manager --set-enabled powertools) && dnf makecache && dnf update -y --allowerasing
 RUN dnf install -y \
     autoconf \
     automake \
