@@ -22,5 +22,5 @@ else
 fi
 
 echo "************************************************************"
-echo "* VScode Docker image is running ..."
+echo "* VS Code Container image is running ..."
 echo "************************************************************"

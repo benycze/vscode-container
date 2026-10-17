@@ -1,4 +1,4 @@
-# Visual Studio Code Docker Environment
+# Visual Studio Code Container Environment
 
 This guide explains how to set up a remote development environment using Docker (or Podman) and Visual Studio Code.
 The development environment is based on freely available tools and supports standard Ubuntu 24.04, Debian stable, AlmaLinux 9, and AlmaLinux 8 base images.
@@ -15,55 +15,6 @@ The development environment is based on freely available tools and supports stan
 The setup runs a development container with an internal SSH daemon. Visual Studio Code on your local machine connects to the container using the official [Remote - SSH extension](https://code.visualstudio.com/docs/remote/ssh) over an SSH tunnel.
 
 ![VS Code Remote Container Architecture](architecture.png)
-
-```mermaid
-flowchart TD
-    subgraph LocalMachine ["Local Machine (Client)"]
-        VSCode["VS Code Desktop (Remote - SSH)"]
-        SSHTunnel["SSH Client with Port Forwarding (~/.ssh/config)"]
-        Browser["Web Browser (localhost:8080)"]
-    end
-
-    subgraph RemoteHost ["Remote Host (Server / VM)"]
-        HostSSHD["Host SSH Daemon (Port 22)"]
-        
-        subgraph Ports ["Host Forwarded Ports"]
-            Port2222["Host Port 2222 (SSH)"]
-            Port8080["Host Port 8080 (HTTP)"]
-        end
-
-        subgraph Runtime ["Container Engine (Docker / Podman)"]
-            subgraph Container ["vscode-dev-$USER (p4-vscode-devel)"]
-                ContainerSSHD["Container sshd (Port 22)"]
-                VSCodeServer["VS Code Server Backend"]
-                Apache["Apache HTTP Server (Port 80)"]
-                Workspace["Mounted Workspace (/p4-home)"]
-            end
-        end
-
-        subgraph PersistentStorage ["Persistent Host Storage"]
-            HostRepos["$HOME/repos"]
-            HostVSCode["~/docker/user-home/vscode-server"]
-            HostCcache["~/docker/user-home/ccache"]
-            HostLocal["~/docker/user-home/local"]
-        end
-    end
-
-    VSCode -->|"1. SSH Connect (SSHToDockerImage: localhost:2222)"| SSHTunnel
-    Browser -->|"Browse Docs (localhost:8080)"| SSHTunnel
-    SSHTunnel -->|"2. SSH Tunnel (yourRemoteHostIP:22)"| HostSSHD
-    HostSSHD -->|"LocalForward 2222"| Port2222
-    HostSSHD -->|"LocalForward 8080"| Port8080
-    Port2222 -->|"Map to container :22"| ContainerSSHD
-    Port8080 -->|"Map to container :80"| Apache
-    ContainerSSHD -->|"Spawns session"| VSCodeServer
-    VSCodeServer --> Workspace
-
-    HostRepos -.->|"Volume mount"| Workspace
-    HostVSCode -.->|"Preserve extensions & server state"| VSCodeServer
-    HostCcache -.->|"Cache compiler artifacts"| Container
-    HostLocal -.->|"Preserve user config"| Container
-```
 
 ### Connection Flow
 
@@ -117,12 +68,13 @@ The build script configures SSH within the container and imports `$HOME/.ssh/aut
 
 ## Running the Container
 
-An example startup script is provided at `examples/run-vscode-docker`:
+An example startup script is provided at `examples/run-vscode-container`:
 
 ```bash
 #!/usr/bin/env bash
-echo "Starting the VS Code docker image ..."
-docker run \
+CONTAINER_TOOL=$(command -v docker 2>/dev/null || command -v podman 2>/dev/null || echo "docker")
+echo "Starting the VS Code container using ${CONTAINER_TOOL} ..."
+${CONTAINER_TOOL} run \
 --privileged \
 --name vscode-dev-$USER \
 --interactive --tty --rm \
@@ -159,17 +111,17 @@ ssh -p 2222 localhost
 
 ## Attaching to a Running Container
 
-An attach script (`examples/attach-vscode-docker`) is provided to open an interactive bash shell in a running container via `docker exec`. It accepts an image name or container name as an argument:
+An attach script (`examples/attach-vscode-container`) is provided to open an interactive bash shell in a running container via `docker exec` (or `podman exec`). It accepts an image name or container name as an argument:
 
 ```bash
 # Attach to the default container (vscode-dev-$USER)
-./examples/attach-vscode-docker
+./examples/attach-vscode-container
 
 # Attach by image name (locates a container running from that image)
-./examples/attach-vscode-docker p4-vscode-devel
+./examples/attach-vscode-container p4-vscode-devel
 
 # Attach by specific container name or ID
-./examples/attach-vscode-docker my-custom-container
+./examples/attach-vscode-container my-custom-container
 ```
 
 ---

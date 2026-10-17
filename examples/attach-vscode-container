@@ -2,7 +2,7 @@
 
 set -e
 
-# Attach script that runs docker exec with /bin/bash
+# Attach script that runs container exec (docker or podman) with /bin/bash
 # Accepts an argument with image name or container name.
 
 TARGET="${1:-vscode-dev-$USER}"
