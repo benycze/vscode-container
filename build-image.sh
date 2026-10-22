@@ -7,7 +7,7 @@ set -e
 # #############################################################################
 
 # Target image name
-DST_IMAGE=p4-vscode-devel
+DST_IMAGE=vscode-devel
 
 # Directory for host SSH keys
 SSH_KEY_DIR=~/docker/docker_ssh_keys

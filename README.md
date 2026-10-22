@@ -14,11 +14,11 @@ The development environment is based on freely available tools and supports stan
 
 The setup runs a development container with an internal SSH daemon. Visual Studio Code on your local machine connects to the container using the official [Remote - SSH extension](https://code.visualstudio.com/docs/remote/ssh) over an SSH tunnel.
 
-![VS Code Remote Container Architecture](architecture.png)
+![VS Code Remote Container Architecture](images/architecture.png)
 
 ### Connection Flow
 
-1. **Container Startup**: Docker or Podman runs the container image (`p4-vscode-devel`), starts the container's `sshd` on port 22 (mapped to host port `2222`), and mounts host repositories into `/p4-home`.
+1. **Container Startup**: Docker or Podman runs the container image (`vscode-devel`), starts the container's `sshd` on port 22 (mapped to host port `2222`), and mounts host repositories into `/project-home`.
 2. **SSH Tunneling**: A single SSH command (`ssh HostForRemoteVScode`) tunnels local port 2222 (for VS Code Remote-SSH) and port 8080 (for web documentation) from your local machine to the remote host.
 3. **VS Code Remote-SSH**: In VS Code, connecting to `SSHToDockerImage` attaches directly into the container via `localhost:2222` using your SSH keys. VS Code runs its backend `vscode-server` directly inside the container.
 4. **Isolated Development**: All compilers, tools (CMake, GCC/Clang, Python, LaTeX), and VS Code extensions run inside the container, while all workspace code and user cache persist on the host filesystem.
@@ -83,11 +83,11 @@ ${CONTAINER_TOOL} run \
 --env="DISPLAY" \
 --env "PS1=docker-\w\$ " \
 --volume="$HOME/.Xauthority:/root/.Xauthority:rw" \
---volume=$HOME/repos:/p4-home \
+--volume=$HOME/repos:/project-home \
 --volume=$HOME/docker/user-home/ccache:/home/$USER/.ccache \
 --volume=$HOME/docker/user-home/vscode-server:/home/$USER/.vscode-server \
 --volume=$HOME/docker/user-home/local:/home/$USER/.local \
-p4-vscode-devel
+vscode-devel
 ```
 
 Ensure the host directories exist before starting the container:
@@ -97,7 +97,7 @@ mkdir -p ~/docker/user-home/ccache ~/docker/user-home/vscode-server ~/docker/use
 ```
 
 Key paths:
-* The host repository path is `$HOME/repos` (mounted to `/p4-home` in the container).
+* The host repository path is `$HOME/repos` (mounted to `/project-home` in the container).
 * The non-root user inside the container has passwordless `sudo` privileges (default password is `docker`).
 * The script forwards container port 22 to host port 2222.
 
@@ -118,7 +118,7 @@ An attach script (`examples/attach-vscode-container`) is provided to open an int
 ./examples/attach-vscode-container
 
 # Attach by image name (locates a container running from that image)
-./examples/attach-vscode-container p4-vscode-devel
+./examples/attach-vscode-container vscode-devel
 
 # Attach by specific container name or ID
 ./examples/attach-vscode-container my-custom-container
@@ -163,7 +163,7 @@ host HostForRemoteVScode
    ssh HostForRemoteVScode
    ```
 2. In Visual Studio Code, press `Ctrl+Shift+P` (or `Cmd+Shift+P`), select **Remote-SSH: Connect to Host...**, and choose **SSHToDockerImage**.
-3. Once connected, open your mounted repository at `/p4-home`.
+3. Once connected, open your mounted repository at `/project-home`.
 
 ### 4. Recommended Extensions in Container
 
@@ -180,11 +180,11 @@ Under Settings > Extensions > C/C++, configure:
 
 ## Documentation Web Server
 
-The container includes an Apache HTTP server. If you generate HTML documentation for your project (e.g. `p4compiler`), create a symbolic link into `/var/www/html`:
+The container includes an Apache HTTP server. If you generate HTML documentation for your project (e.g. `myproject`), create a symbolic link into `/var/www/html`:
 
 ```bash
-ln -s /p4-home/p4compiler/doc /var/www/html/p4compiler-doc
+ln -s /project-home/myproject/doc /var/www/html/myproject-doc
 ```
 
 With port 8080 forwarded to your local machine, open your browser and navigate to:
-`http://localhost:8080/p4compiler-doc`
+`http://localhost:8080/myproject-doc`

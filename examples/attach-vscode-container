@@ -31,7 +31,7 @@ else
         CONTAINER_TO_ATTACH="$FOUND_ID"
     else
         # If default TARGET wasn't found as a container, check if default image is running
-        FOUND_DEFAULT_ID=$(find_container_by_image "p4-vscode-devel")
+        FOUND_DEFAULT_ID=$(find_container_by_image "vscode-devel")
         if [ -n "$FOUND_DEFAULT_ID" ]; then
             CONTAINER_TO_ATTACH="$FOUND_DEFAULT_ID"
         fi

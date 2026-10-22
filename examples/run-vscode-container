@@ -10,8 +10,8 @@ ${CONTAINER_TOOL} run \
 --env="DISPLAY" \
 --env "PS1=docker-\w\$ " \
 --volume="$HOME/.Xauthority:/root/.Xauthority:rw" \
---volume=$HOME/repos:/p4-home \
+--volume=$HOME/repos:/project-home \
 --volume=$HOME/docker/user-home/ccache:/home/$USER/.ccache \
 --volume=$HOME/docker/user-home/vscode-server:/home/$USER/.vscode-server \
 --volume=$HOME/docker/user-home/local:/home/$USER/.local \
-p4-vscode-devel
+vscode-devel

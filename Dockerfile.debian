@@ -141,7 +141,7 @@ ENV LC_ALL en_US.UTF-8
 
 # Setup python packages
 ARG PYTHON_DEPS="cpplint pylint autopep8 reportlab scapy gitpython dtc"
-RUN python3 -m pip install --break-system-packages --no-cache-dir --proxy=$HTTP_PROXY ${PYTHON_DEPS}
+RUN python3 -m pip install --break-system-packages --no-cache-dir ${PYTHON_DEPS}
 
 # Create a user and setup the password
 RUN groupadd -g ${GID} ${GROUP}
@@ -149,7 +149,7 @@ RUN useradd -m ${USER} --uid=${UID} --gid=${GID} -s/bin/bash && echo "${USER}:${
 
 # Configure sudo - create a user & export some variables
 RUN echo "${USER} ALL = (root) NOPASSWD:ALL" > /etc/sudoers.d/${USER}
-RUN echo "Defaults env_keep += \"ftp_proxy http_proxy https_proxy no_proxy DISPLAY\""
+RUN echo "Defaults env_keep += \"DISPLAY\""
 
 # Setup alias for bash users
 RUN echo "alias sudo='sudo -E'" >> /etc/bash.bashrc && \

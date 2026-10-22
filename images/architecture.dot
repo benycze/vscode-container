@@ -1,0 +1,255 @@
+digraph Architecture {
+    // Global layout settings
+    graph [
+        rankdir="TB",
+        nodesep=0.6,
+        ranksep=0.8,
+        fontname="Helvetica-Bold,Arial-Bold,sans-serif",
+        fontsize=18,
+        compound=true,
+        bgcolor="#ffffff",
+        pad="0.4"
+    ];
+
+    node [
+        fontname="Helvetica,Arial,sans-serif",
+        fontsize=15,
+        shape="box",
+        style="rounded,filled",
+        fillcolor="#f8fafc",
+        color="#475569",
+        penwidth=1.8,
+        margin="0.35,0.2"
+    ];
+
+    edge [
+        fontname="Helvetica-Bold,Arial-Bold,sans-serif",
+        fontsize=13,
+        color="#334155",
+        penwidth=2.0,
+        arrowsize=0.9
+    ];
+
+    // ==========================================
+    // Local Machine (Client)
+    // ==========================================
+    subgraph cluster_local {
+        label = "Local Machine (Client)";
+        fontname = "Helvetica-Bold,Arial-Bold,sans-serif";
+        fontsize = 18;
+        fontcolor = "#0369a1";
+        style = "rounded,filled";
+        fillcolor = "#f0f9ff";
+        color = "#0284c7";
+        penwidth = 2.5;
+
+        { rank = same; vscode; browser; }
+
+        vscode [
+            label = "VS Code Desktop\n(Remote - SSH extension)",
+            fillcolor = "#e0f2fe",
+            color = "#0284c7"
+        ];
+
+        browser [
+            label = "Web Browser\n(localhost:8080/myproject-doc)",
+            fillcolor = "#fef3c7",
+            color = "#d97706"
+        ];
+
+        ssh_tunnel [
+            label = "SSH Client with Port Forwarding (~/.ssh/config)\nLocalForward 2222 -> localhost:2222\nLocalForward 8080 -> localhost:8080",
+            fillcolor = "#dcfce7",
+            color = "#16a34a"
+        ];
+
+        vscode -> ssh_tunnel [
+            label = "1. Connect (SSHToDockerImage)",
+            color = "#0284c7"
+        ];
+
+        browser -> ssh_tunnel [
+            label = "Browse Docs",
+            color = "#d97706"
+        ];
+    }
+
+    // ==========================================
+    // Remote Host (Server / VM)
+    // ==========================================
+    subgraph cluster_remote {
+        label = "Remote Host (Server / VM)";
+        fontname = "Helvetica-Bold,Arial-Bold,sans-serif";
+        fontsize = 18;
+        fontcolor = "#1e293b";
+        style = "rounded,filled";
+        fillcolor = "#fafafa";
+        color = "#475569";
+        penwidth = 2.5;
+
+        host_sshd [
+            label = "Host SSH Daemon (sshd)\n(Port 22)",
+            fillcolor = "#dcfce7",
+            color = "#16a34a"
+        ];
+
+        // Host Forwarded Ports
+        subgraph cluster_ports {
+            label = "Host Forwarded Ports";
+            fontname = "Helvetica-Bold,Arial-Bold,sans-serif";
+            fontsize = 15;
+            fontcolor = "#15803d";
+            style = "rounded,filled";
+            fillcolor = "#ffffff";
+            color = "#22c55e";
+            penwidth = 2.0;
+
+            { rank = same; port_2222; port_8080; }
+
+            port_2222 [
+                label = "Host Port 2222\n(SSH)",
+                fillcolor = "#f0fdf4",
+                color = "#16a34a"
+            ];
+
+            port_8080 [
+                label = "Host Port 8080\n(HTTP)",
+                fillcolor = "#fffbeb",
+                color = "#d97706"
+            ];
+        }
+
+        // Container Engine Subgraph
+        subgraph cluster_runtime {
+            label = "Container Engine (Docker / Podman)";
+            fontname = "Helvetica-Bold,Arial-Bold,sans-serif";
+            fontsize = 16;
+            fontcolor = "#1d4ed8";
+            style = "rounded,filled";
+            fillcolor = "#eff6ff";
+            color = "#3b82f6";
+            penwidth = 2.0;
+
+            subgraph cluster_container {
+                label = "Container: vscode-dev-$USER (Image: vscode-devel)";
+                fontname = "Helvetica-Bold,Arial-Bold,sans-serif";
+                fontsize = 15;
+                fontcolor = "#1e40af";
+                style = "rounded,filled";
+                fillcolor = "#ffffff";
+                color = "#2563eb";
+                penwidth = 2.0;
+
+                { rank = same; container_sshd; apache; }
+
+                container_sshd [
+                    label = "Container sshd\n(Port 22)",
+                    fillcolor = "#dbeafe",
+                    color = "#2563eb"
+                ];
+
+                apache [
+                    label = "Apache HTTP Server\n(Port 80)",
+                    fillcolor = "#fef3c7",
+                    color = "#d97706"
+                ];
+
+                vscode_server [
+                    label = "VS Code Server Backend\n(~/.vscode-server)",
+                    fillcolor = "#f3e8ff",
+                    color = "#7c3aed"
+                ];
+
+                workspace [
+                    label = "Mounted Workspace\n(/project-home)",
+                    fillcolor = "#dcfce7",
+                    color = "#16a34a"
+                ];
+            }
+        }
+
+        // Persistent Host Storage
+        subgraph cluster_storage {
+            label = "Persistent Host Storage (Preserved across container rebuilds)";
+            fontname = "Helvetica-Bold,Arial-Bold,sans-serif";
+            fontsize = 15;
+            fontcolor = "#6b21a8";
+            style = "rounded,filled";
+            fillcolor = "#faf5ff";
+            color = "#a855f7";
+            penwidth = 2.0;
+
+            { rank = same; host_repos; host_vscode; host_ccache; host_local; }
+
+            host_repos [
+                label = "Host Repos\n$HOME/repos",
+                fillcolor = "#ffffff",
+                color = "#7c3aed"
+            ];
+
+            host_vscode [
+                label = "VS Code Server State\n~/docker/user-home/vscode-server",
+                fillcolor = "#ffffff",
+                color = "#7c3aed"
+            ];
+
+            host_ccache [
+                label = "Compiler Cache\n~/docker/user-home/ccache",
+                fillcolor = "#ffffff",
+                color = "#7c3aed"
+            ];
+
+            host_local [
+                label = "User Config & Tools\n~/docker/user-home/local",
+                fillcolor = "#ffffff",
+                color = "#7c3aed"
+            ];
+        }
+
+        // Host internal connections
+        host_sshd -> port_2222 [label = "Forward 2222", color = "#16a34a"];
+        host_sshd -> port_8080 [label = "Forward 8080", color = "#d97706"];
+
+        port_2222 -> container_sshd [label = "Map to :22", color = "#2563eb"];
+        port_8080 -> apache [label = "Map to :80", color = "#d97706"];
+
+        container_sshd -> vscode_server [label = "Spawns session", color = "#2563eb"];
+        vscode_server -> workspace [label = "Opens workspace", color = "#16a34a"];
+
+        // Volume mounts (dashed purple lines)
+        host_repos -> workspace [
+            label = "Volume mount",
+            style = "dashed",
+            color = "#7c3aed",
+            fontcolor = "#6b21a8"
+        ];
+
+        host_vscode -> vscode_server [
+            label = "Preserve extensions & state",
+            style = "dashed",
+            color = "#7c3aed",
+            fontcolor = "#6b21a8"
+        ];
+
+        host_ccache -> container_sshd [
+            label = "Cache compiler artifacts",
+            style = "dashed",
+            color = "#7c3aed",
+            fontcolor = "#6b21a8"
+        ];
+
+        host_local -> container_sshd [
+            label = "Preserve user config",
+            style = "dashed",
+            color = "#7c3aed",
+            fontcolor = "#6b21a8"
+        ];
+    }
+
+    // Tunnel connection between Local Machine and Remote Host
+    ssh_tunnel -> host_sshd [
+        label = "2. SSH Tunnel (yourRemoteHostIP:22)",
+        color = "#16a34a",
+        penwidth = 3.0
+    ];
+}
